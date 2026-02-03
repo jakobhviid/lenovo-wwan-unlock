@@ -2,6 +2,16 @@
 
 echo "Uninstalling fcc unlock pakage"
 
+### Detect Fedora Silverblue/Kinoite (and other atomic variants) and defer
+if [ -f /etc/os-release ]; then
+    . /etc/os-release
+    VARIANT_ID_LOWER=$(printf "%s" "${VARIANT_ID:-}" | tr '[:upper:]' '[:lower:]')
+    if [ "$ID" = "fedora" ] && { [ "$VARIANT_ID_LOWER" = "silverblue" ] || [ "$VARIANT_ID_LOWER" = "kinoite" ]; }; then
+        echo "Detected Fedora ${VARIANT_ID:-atomic variant}. Deferring to Silverblue uninstall script..."
+        exec "$(dirname "$0")/fcc_unlock_uninstall_silverblue.sh"
+    fi
+fi
+
 if [ -d "/opt/fcc_lenovo" ]
 then
         sudo rm -rf /opt/fcc_lenovo

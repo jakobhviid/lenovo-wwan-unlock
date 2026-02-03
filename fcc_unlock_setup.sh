@@ -4,6 +4,16 @@
 pushd "$(dirname "$0")" &> /dev/null || exit 1
 trap "popd &> /dev/null" EXIT
 
+### Detect Fedora Silverblue/Kinoite (and other atomic variants) and defer
+if [ -f /etc/os-release ]; then
+    . /etc/os-release
+    VARIANT_ID_LOWER=$(printf "%s" "${VARIANT_ID:-}" | tr '[:upper:]' '[:lower:]')
+    if [ "$ID" = "fedora" ] && { [ "$VARIANT_ID_LOWER" = "silverblue" ] || [ "$VARIANT_ID_LOWER" = "kinoite" ]; }; then
+        echo "Detected Fedora ${VARIANT_ID:-atomic variant}. Deferring to Silverblue setup script..."
+        exec "$(dirname "$0")/fcc_unlock_setup_silverblue.sh"
+    fi
+fi
+
 echo "Copying files and libraries..."
 
 if [ ! -d "/opt/fcc_lenovo" ]
