@@ -4,9 +4,38 @@ This repository contains scripts and configurations for enabling FCC and DPR unl
 
 The original scripts in this repository were designed for traditional Linux distributions and are incompatible with Fedora Silverblue's immutable root filesystem. This "-silverblue" version includes new setup and uninstall scripts (`fcc_unlock_setup_silverblue.sh` and `fcc_unlock_uninstall_silverblue.sh`) that leverage Silverblue's architectural principles (e.g., using writable `/etc` and `/var` directories, systemd drop-ins) to achieve the same functionality while preserving system integrity.
 
-These Silverblue-compatible scripts were developed by Gemini AI.
+These Silverblue-compatible scripts were developed by Gemini AI. Additional adaptations and hardening were made by Codex (OpenAI).
+
+Quick Start (Silverblue / Kinoite):
+1) Run the Silverblue setup script:
+   ```
+   chmod ugo+x fcc_unlock_setup_silverblue.sh
+   ./fcc_unlock_setup_silverblue.sh
+   ```
+2) Reboot once.
+
+Uninstall (Silverblue / Kinoite):
+1) Run the Silverblue uninstall script:
+   ```
+   chmod ugo+x fcc_unlock_uninstall_silverblue.sh
+   ./fcc_unlock_uninstall_silverblue.sh
+   ```
+
+Notes / Deviations From Upstream:
+- The upstream Lenovo repo does not include the Silverblue scripts. This fork adds them and uses writable `/etc` and `/opt` paths instead of immutable `/usr` and `/lib`.
+- The legacy Lenovo scripts (`fcc_unlock_setup.sh`, `fcc_unlock_uninstall.sh`) are retained for reference, but they now detect Fedora Silverblue/Kinoite (case-insensitive) and defer to the Silverblue scripts.
+- The FCC unlock scripts inside `fcc-unlock.d.tar.gz` now call `/opt/fcc_lenovo/DPR_Fcc_unlock_service` using an absolute path to avoid reliance on ModemManager’s working directory.
+- `fcc_unlock_setup_silverblue.sh` includes a best-effort check that warns if ModemManager’s FCC unlock search path does not appear to include `/etc/ModemManager/fcc-unlock.d`.
+
+Rationale / Known Issues (for maintainers):
+- Silverblue/Kinoite have immutable `/usr` and `/lib`, so upstream install logic that writes into those locations will fail. All integration must be done via writable `/etc` and `/opt`.
+- The original `fcc-unlock.d` scripts used `./opt/fcc_lenovo/...` (relative path). This can break if ModemManager’s working directory is not `/`. Absolute `/opt/...` avoids this fragility.
+- ModemManager’s FCC unlock search paths may vary by build. The Silverblue setup script does a best-effort binary check for `/etc/ModemManager/fcc-unlock.d` and warns if it cannot find it.
+- The scripts assume `mmcli`, `lspci`, `semodule`, `ldconfig`, and `systemctl` are present. On a minimal Silverblue image, you may need to install missing packages via `rpm-ostree`.
 
 ----
+Everything below this line is from the original upstream repository.
+
 FCC and DPR unlock for Lenovo PCs
 
 Instructions to perform FCC unlock and SAR config:
