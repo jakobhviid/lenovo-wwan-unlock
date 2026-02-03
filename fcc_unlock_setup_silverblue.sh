@@ -35,6 +35,23 @@ echo "Configuring ModemManager..."
 sudo mkdir -p /etc/ModemManager/fcc-unlock.d
 sudo tar -zxf fcc-unlock.d.tar.gz -C /etc/ModemManager/fcc-unlock.d/
 sudo chmod ugo+x /etc/ModemManager/fcc-unlock.d/*
+echo "Verifying ModemManager FCC unlock search path..."
+MM_BIN=$(command -v ModemManager || true)
+if [ -z "$MM_BIN" ]; then
+    echo "Warning: ModemManager binary not found. Unable to verify FCC unlock search path."
+elif command -v strings >/dev/null 2>&1; then
+    if strings "$MM_BIN" | grep -q "/etc/ModemManager/fcc-unlock.d"; then
+        echo "ModemManager appears to include /etc/ModemManager/fcc-unlock.d in its search path."
+    elif strings "$MM_BIN" | grep -q "/ModemManager/fcc-unlock.d"; then
+        echo "Warning: ModemManager FCC unlock path detected, but /etc/ModemManager/fcc-unlock.d was not found in the binary."
+        echo "If FCC unlock does not trigger, verify ModemManager search paths on this system."
+    else
+        echo "Warning: Unable to detect ModemManager FCC unlock search path in the binary."
+        echo "If FCC unlock does not trigger, verify ModemManager search paths on this system."
+    fi
+else
+    echo "Warning: 'strings' not available. Unable to verify ModemManager FCC unlock search path."
+fi
 
 ### Configure dynamic linker to find our libraries
 echo "Configuring dynamic linker..."
