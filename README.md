@@ -1,4 +1,12 @@
-# lenovo-wwan-unlock
+# lenovo-wwan-unlock-silverblue
+
+This repository contains scripts and configurations for enabling FCC and DPR unlock, and SAR configuration, for WWAN modules in specific Lenovo PCs, specifically adapted for **Fedora Silverblue**.
+
+The original scripts in this repository were designed for traditional Linux distributions and are incompatible with Fedora Silverblue's immutable root filesystem. This "-silverblue" version includes new setup and uninstall scripts (`fcc_unlock_setup_silverblue.sh` and `fcc_unlock_uninstall_silverblue.sh`) that leverage Silverblue's architectural principles (e.g., using writable `/etc` and `/var` directories, systemd drop-ins) to achieve the same functionality while preserving system integrity.
+
+These Silverblue-compatible scripts were developed by Gemini AI.
+
+----
 FCC and DPR unlock for Lenovo PCs
 
 Instructions to perform FCC unlock and SAR config:
