@@ -119,6 +119,20 @@ sudo chmod ugo+x /opt/fcc_lenovo/*
 sudo chmod ugo+x suspend-fix/wwan_issue_fix.sh
 suspend-fix/wwan_issue_fix.sh
 
+### Check persisted WWAN rfkill state (ThinkPad)
+RFKILL_STORE="/var/lib/systemd/rfkill/platform-thinkpad_acpi:wwan"
+if [ -f "$RFKILL_STORE" ]; then
+    RFKILL_VAL=$(cat "$RFKILL_STORE" 2>/dev/null || echo "")
+    if [ "$RFKILL_VAL" = "0" ]; then
+        echo "Warning: persisted WWAN rfkill is blocked (0)."
+        echo "This can cause 'software radio switch is OFF' even if rfkill shows unblocked."
+        echo "Applying fix..."
+        sudo sh -c 'echo 1 > /var/lib/systemd/rfkill/platform-thinkpad_acpi:wwan'
+        sudo systemctl restart systemd-rfkill
+        echo "Fix applied."
+    fi
+fi
+
 
 ## Please reboot machine (this will be needed only one for time)##
 

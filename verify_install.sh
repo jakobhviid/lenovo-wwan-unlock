@@ -2,6 +2,11 @@
 
 set -euo pipefail
 
+FIX_RFKILL=false
+if [ "${1:-}" = "--fix-rfkill" ]; then
+    FIX_RFKILL=true
+fi
+
 printf '%s\n' "WWAN unlock verification"
 
 hook_dir_etc="/etc/ModemManager/fcc-unlock.d"
@@ -40,6 +45,31 @@ if command -v rfkill >/dev/null 2>&1; then
     rfkill list || true
 else
     printf '%s\n' "rfkill not found"
+fi
+
+printf '%s' "- systemd-rfkill (persisted state): "
+rfkill_store="/var/lib/systemd/rfkill/platform-thinkpad_acpi:wwan"
+if [ -f "$rfkill_store" ]; then
+    cat "$rfkill_store" || true
+    if [ "$(cat "$rfkill_store" 2>/dev/null)" = "0" ]; then
+        printf '%s\n' "  Warning: persisted WWAN rfkill is blocked (0). This can cause 'software radio switch is OFF'."
+        if $FIX_RFKILL; then
+            printf '%s\n' "  Applying fix..."
+            if command -v sudo >/dev/null 2>&1; then
+                sudo sh -c 'echo 1 > /var/lib/systemd/rfkill/platform-thinkpad_acpi:wwan'
+                sudo systemctl restart systemd-rfkill
+            else
+                sh -c 'echo 1 > /var/lib/systemd/rfkill/platform-thinkpad_acpi:wwan'
+                systemctl restart systemd-rfkill
+            fi
+            printf '%s\n' "  Fix applied."
+        else
+            printf '%s\n' "  Fix: ./verify_install.sh --fix-rfkill"
+            printf '%s\n' "  Or:  sudo sh -c 'echo 1 > /var/lib/systemd/rfkill/platform-thinkpad_acpi:wwan' && sudo systemctl restart systemd-rfkill"
+        fi
+    fi
+else
+    printf '%s\n' "not found"
 fi
 
 printf '%s' "- NetworkManager radio: "

@@ -18,11 +18,18 @@ Quick Verify:
 ```
 ./verify_install.sh
 ```
+Quick Fix (ThinkPad WWAN persisted rfkill):
+```
+./verify_install.sh --fix-rfkill
+```
 
 Bazzite Notes:
 - If ModemManager shows "software radio switch is OFF" even though `rfkill` and `nmcli radio` report enabled, check your ThinkPad WWAN hardware toggle and BIOS/UEFI WWAN settings.
+- Also check the persisted rfkill state. If `/var/lib/systemd/rfkill/platform-thinkpad_acpi:wwan` contains `0`, systemd restores WWAN as blocked at boot.
+- Fix: `./verify_install.sh --fix-rfkill`
 - If ModemManager stops seeing the modem after restart, re-trigger udev:
   `sudo udevadm trigger -c add -s mhi -s wwan && sudo udevadm settle`
+- Avoid repeated ModemManager stop/start loops while MBIM is active; it can temporarily hide the modem.
 
 Uninstall (Silverblue / Kinoite / Bazzite):
 1) Run the Silverblue uninstall script:
