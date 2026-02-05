@@ -4,12 +4,14 @@
 pushd "$(dirname "$0")" &> /dev/null || exit 1
 trap "popd &> /dev/null" EXIT
 
-### Detect Fedora Silverblue/Kinoite (and other atomic variants) and defer
+### Detect Fedora Silverblue/Kinoite/Bazzite (and other atomic variants) and defer
 if [ -f /etc/os-release ]; then
     . /etc/os-release
     VARIANT_ID_LOWER=$(printf "%s" "${VARIANT_ID:-}" | tr '[:upper:]' '[:lower:]')
-    if [ "$ID" = "fedora" ] && { [ "$VARIANT_ID_LOWER" = "silverblue" ] || [ "$VARIANT_ID_LOWER" = "kinoite" ]; }; then
-        echo "Detected Fedora ${VARIANT_ID:-atomic variant}. Deferring to Silverblue setup script..."
+    ID_LOWER=$(printf "%s" "${ID:-}" | tr '[:upper:]' '[:lower:]')
+    if { [ "$ID_LOWER" = "fedora" ] || [ "$ID_LOWER" = "bazzite" ]; } && \
+       { [ "$VARIANT_ID_LOWER" = "silverblue" ] || [ "$VARIANT_ID_LOWER" = "kinoite" ] || [ "$VARIANT_ID_LOWER" = "bazzite" ]; }; then
+        echo "Detected Fedora atomic variant (${ID:-unknown}/${VARIANT_ID:-unknown}). Deferring to Silverblue setup script..."
         exec "$(dirname "$0")/fcc_unlock_setup_silverblue.sh"
     fi
 fi
@@ -36,8 +38,17 @@ echo $NAME
 if [[ "$NAME" == *"$OS_UBUNTU"* ]]
 then
 	### Copy fcc unlock script for MM
-	sudo tar -zxf fcc-unlock.d.tar.gz -C /usr/lib/x86_64-linux-gnu/ModemManager/
+	sudo mkdir -p /usr/lib/x86_64-linux-gnu/ModemManager/fcc-unlock.d
+	sudo tar -zxf fcc-unlock.d.tar.gz -C /usr/lib/x86_64-linux-gnu/ModemManager/fcc-unlock.d --strip-components=1
+	sudo find /usr/lib/x86_64-linux-gnu/ModemManager/fcc-unlock.d -name '._*' -delete
 	sudo chmod ugo+x /usr/lib/x86_64-linux-gnu/ModemManager/fcc-unlock.d/*
+	echo "Validating FCC unlock hook installation..."
+	if [ -d /usr/lib/x86_64-linux-gnu/ModemManager/fcc-unlock.d/fcc-unlock.d ]; then
+		echo "Warning: Nested fcc-unlock.d directory detected."
+	fi
+	if ! find /usr/lib/x86_64-linux-gnu/ModemManager/fcc-unlock.d -maxdepth 1 -type f | grep -q .; then
+		echo "Warning: No FCC unlock hook files found in /usr/lib/x86_64-linux-gnu/ModemManager/fcc-unlock.d."
+	fi
 
 	### Copy SAR config files
 	sudo tar -zxf sar_config_files.tar.gz -C /opt/fcc_lenovo/
@@ -53,8 +64,17 @@ then
 elif [[ "$NAME" == *"$OS_FEDORA"* ]]
 then
 	### Copy fcc unlock script for MM
-	sudo tar -zxf fcc-unlock.d.tar.gz -C /usr/lib64/ModemManager/
+	sudo mkdir -p /usr/lib64/ModemManager/fcc-unlock.d
+	sudo tar -zxf fcc-unlock.d.tar.gz -C /usr/lib64/ModemManager/fcc-unlock.d --strip-components=1
+	sudo find /usr/lib64/ModemManager/fcc-unlock.d -name '._*' -delete
 	sudo chmod ugo+x /usr/lib64/ModemManager/fcc-unlock.d/*
+	echo "Validating FCC unlock hook installation..."
+	if [ -d /usr/lib64/ModemManager/fcc-unlock.d/fcc-unlock.d ]; then
+		echo "Warning: Nested fcc-unlock.d directory detected."
+	fi
+	if ! find /usr/lib64/ModemManager/fcc-unlock.d -maxdepth 1 -type f | grep -q .; then
+		echo "Warning: No FCC unlock hook files found in /usr/lib64/ModemManager/fcc-unlock.d."
+	fi
 
 	### Copy SAR config files
 	sudo tar -zxf sar_config_files.tar.gz -C /opt/fcc_lenovo/

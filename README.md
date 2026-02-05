@@ -6,7 +6,7 @@ The original scripts in this repository were designed for traditional Linux dist
 
 These Silverblue-compatible scripts were developed by Gemini AI. Additional adaptations and hardening were made by Codex (OpenAI).
 
-Quick Start (Silverblue / Kinoite):
+Quick Start (Silverblue / Kinoite / Bazzite):
 1) Run the Silverblue setup script:
    ```
    chmod ugo+x fcc_unlock_setup_silverblue.sh
@@ -14,7 +14,17 @@ Quick Start (Silverblue / Kinoite):
    ```
 2) Reboot once.
 
-Uninstall (Silverblue / Kinoite):
+Quick Verify:
+```
+./verify_install.sh
+```
+
+Bazzite Notes:
+- If ModemManager shows "software radio switch is OFF" even though `rfkill` and `nmcli radio` report enabled, check your ThinkPad WWAN hardware toggle and BIOS/UEFI WWAN settings.
+- If ModemManager stops seeing the modem after restart, re-trigger udev:
+  `sudo udevadm trigger -c add -s mhi -s wwan && sudo udevadm settle`
+
+Uninstall (Silverblue / Kinoite / Bazzite):
 1) Run the Silverblue uninstall script:
    ```
    chmod ugo+x fcc_unlock_uninstall_silverblue.sh

@@ -33,8 +33,20 @@ sudo chmod ugo+x /opt/fcc_lenovo/*
 ### Create ModemManager fcc-unlock.d directory in /etc
 echo "Configuring ModemManager..."
 sudo mkdir -p /etc/ModemManager/fcc-unlock.d
-sudo tar -zxf fcc-unlock.d.tar.gz -C /etc/ModemManager/fcc-unlock.d/
+# Tarball contains top-level fcc-unlock.d/, strip it to avoid nested dir
+sudo tar -zxf fcc-unlock.d.tar.gz -C /etc/ModemManager/fcc-unlock.d/ --strip-components=1
+# Remove macOS metadata files if present
+sudo find /etc/ModemManager/fcc-unlock.d -name '._*' -delete
 sudo chmod ugo+x /etc/ModemManager/fcc-unlock.d/*
+echo "Validating FCC unlock hook installation..."
+if [ -d /etc/ModemManager/fcc-unlock.d/fcc-unlock.d ]; then
+    echo "Warning: Nested /etc/ModemManager/fcc-unlock.d/fcc-unlock.d detected."
+    echo "This prevents ModemManager from finding hooks. Remove the nested directory and re-run setup."
+fi
+if ! find /etc/ModemManager/fcc-unlock.d -maxdepth 1 -type f | grep -q .; then
+    echo "Warning: No FCC unlock hook files found in /etc/ModemManager/fcc-unlock.d."
+    echo "FCC unlock will not trigger until hook files are present."
+fi
 echo "Verifying ModemManager FCC unlock search path..."
 MM_BIN=$(command -v ModemManager || true)
 if [ -z "$MM_BIN" ]; then

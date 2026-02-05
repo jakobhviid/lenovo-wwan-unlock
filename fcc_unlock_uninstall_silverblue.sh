@@ -43,6 +43,7 @@ echo "Removing files from /opt/fcc_lenovo..."
 sudo rm -rf /opt/fcc_lenovo
 
 echo "Uninstallation complete."
+echo "If you need to verify state, run: ./verify_install.sh"
 
 ### Exit script
 exit 0
