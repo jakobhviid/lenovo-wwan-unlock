@@ -104,10 +104,12 @@ fi
 sudo cp -rvf DPR_Fcc_unlock_service /opt/fcc_lenovo/
 sudo cp -rvf configservice_lenovo /opt/fcc_lenovo/
 
-## copy and enable service
+## copy and enable services
 sudo cp -rvf lenovo-cfgservice.service /etc/systemd/system/.
+sudo cp -rvf lenovo-fcc-unlock.service /etc/systemd/system/.
 sudo systemctl daemon-reload
-systemctl enable lenovo-cfgservice
+sudo systemctl enable lenovo-cfgservice
+sudo systemctl enable lenovo-fcc-unlock
 
 ### Grant permissions to all binaries and script
 sudo chmod ugo+x /opt/fcc_lenovo/*

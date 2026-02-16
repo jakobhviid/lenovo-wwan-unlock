@@ -1,0 +1,13 @@
+[Unit]
+Description=Lenovo WWAN FCC Unlock
+After=ModemManager.service
+Wants=ModemManager.service
+
+[Service]
+Type=oneshot
+ExecStartPre=/bin/bash -c 'for i in $(seq 1 30); do [ -c /dev/wwan0mbim0 ] && exit 0; sleep 1; done; echo "Timeout waiting for /dev/wwan0mbim0" >&2; exit 1'
+ExecStart=/opt/fcc_lenovo/DPR_Fcc_unlock_service
+RemainAfterExit=yes
+
+[Install]
+WantedBy=multi-user.target

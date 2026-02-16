@@ -13,10 +13,12 @@ echo "Removing dynamic linker configuration..."
 sudo rm -f /etc/ld.so.conf.d/fcc-lenovo.conf
 sudo ldconfig
 
-### Disable and remove the SAR config service
-echo "Disabling and removing systemd service..."
+### Disable and remove the SAR config service and FCC unlock service
+echo "Disabling and removing systemd services..."
 sudo systemctl disable --now lenovo-cfgservice
 sudo rm -f /etc/systemd/system/lenovo-cfgservice.service
+sudo systemctl disable --now lenovo-fcc-unlock
+sudo rm -f /etc/systemd/system/lenovo-fcc-unlock.service
 
 ### Reload systemd to apply changes
 echo "Reloading systemd..."

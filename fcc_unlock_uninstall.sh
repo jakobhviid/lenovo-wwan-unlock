@@ -89,10 +89,15 @@ else
     exit 0
 fi
 
-## Delete SAR config service
+## Delete SAR config service and FCC unlock service
+sudo systemctl disable --now lenovo-fcc-unlock 2>/dev/null
+if [ -e "/etc/systemd/system/lenovo-fcc-unlock.service" ]
+then
+	sudo rm -f /etc/systemd/system/lenovo-fcc-unlock.service
+fi
 if [ -e "/etc/systemd/system/lenovo-cfgservice.service" ]
 then
-	sudo rm -rf /etc/systemd/system/lenovo-cfgservice.service
+	sudo rm -f /etc/systemd/system/lenovo-cfgservice.service
 fi
 sudo systemctl daemon-reload
 

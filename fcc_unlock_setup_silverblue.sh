@@ -73,8 +73,10 @@ sudo ldconfig
 ### Install and enable the SAR config service
 echo "Configuring systemd services..."
 sudo cp -rvf lenovo-cfgservice.service /etc/systemd/system/
+sudo cp -rvf lenovo-fcc-unlock.service /etc/systemd/system/
 sudo systemctl daemon-reload
 sudo systemctl enable lenovo-cfgservice
+sudo systemctl enable lenovo-fcc-unlock
 
 ### Part 3: Apply system-wide workarounds
 
