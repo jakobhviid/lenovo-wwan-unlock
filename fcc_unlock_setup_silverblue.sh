@@ -78,6 +78,12 @@ sudo systemctl daemon-reload
 sudo systemctl enable lenovo-cfgservice
 sudo systemctl enable lenovo-fcc-unlock
 
+### Install suspend/resume hook to re-run FCC unlock after wake
+echo "Installing FCC unlock suspend/resume hook..."
+sudo mkdir -p /etc/systemd/system-sleep
+sudo cp -vf lenovo-fcc-unlock-resume.sh /etc/systemd/system-sleep/
+sudo chmod 755 /etc/systemd/system-sleep/lenovo-fcc-unlock-resume.sh
+
 ### Part 3: Apply system-wide workarounds
 
 ### Apply ModemManager suspend fix via drop-in config

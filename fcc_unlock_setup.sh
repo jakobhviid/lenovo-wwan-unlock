@@ -111,6 +111,11 @@ sudo systemctl daemon-reload
 sudo systemctl enable lenovo-cfgservice
 sudo systemctl enable lenovo-fcc-unlock
 
+### Install suspend/resume hook to re-run FCC unlock after wake
+sudo mkdir -p /etc/systemd/system-sleep
+sudo cp -vf lenovo-fcc-unlock-resume.sh /etc/systemd/system-sleep/
+sudo chmod 755 /etc/systemd/system-sleep/lenovo-fcc-unlock-resume.sh
+
 ### Grant permissions to all binaries and script
 sudo chmod ugo+x /opt/fcc_lenovo/*
 

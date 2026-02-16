@@ -20,6 +20,10 @@ sudo rm -f /etc/systemd/system/lenovo-cfgservice.service
 sudo systemctl disable --now lenovo-fcc-unlock
 sudo rm -f /etc/systemd/system/lenovo-fcc-unlock.service
 
+### Remove suspend/resume hook
+echo "Removing FCC unlock suspend/resume hook..."
+sudo rm -f /etc/systemd/system-sleep/lenovo-fcc-unlock-resume.sh
+
 ### Reload systemd to apply changes
 echo "Reloading systemd..."
 sudo systemctl daemon-reload
