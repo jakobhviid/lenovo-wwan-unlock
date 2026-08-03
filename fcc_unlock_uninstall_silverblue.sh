@@ -1,6 +1,8 @@
 #! /bin/bash
 
-echo "Uninstalling WWAN unlock package from Fedora Silverblue..."
+echo "Uninstalling WWAN unlock package from Fedora Silverblue / Kinoite / Bazzite..."
+
+INSTALL_DIR="/var/fcc_lenovo"
 
 ### Part 1: Remove system integrations
 
@@ -30,14 +32,20 @@ sudo systemctl daemon-reload
 
 ### Part 2: Remove files and policies
 
-### Remove SELinux policies
-# The .cil files are in /opt/fcc_lenovo, so we do this before removing that directory
-if [ -d "/opt/fcc_lenovo" ] && [ -f "/opt/fcc_lenovo/mm_FccUnlock.cil" ]; then
+### Remove SELinux policies and file-context rules
+# The .cil files live in ${INSTALL_DIR}, so remove the modules before the dir.
+if [ -f "${INSTALL_DIR}/mm_FccUnlock.cil" ]; then
     echo "Removing SELinux policies..."
-    # The module name is the same as the cil file name without the extension
+    # The module name is the cil file name without the extension
     sudo semodule -r mm_FccUnlock
     sudo semodule -r mm_dmidecode
     sudo semodule -r mm_sh
+fi
+if command -v semanage >/dev/null 2>&1; then
+    echo "Removing SELinux file-context rules..."
+    sudo semanage fcontext -d "${INSTALL_DIR}/DPR_Fcc_unlock_service" 2>/dev/null || true
+    sudo semanage fcontext -d "${INSTALL_DIR}/configservice_lenovo" 2>/dev/null || true
+    sudo semanage fcontext -d "${INSTALL_DIR}/lib(/.*)?" 2>/dev/null || true
 fi
 
 ### Remove ModemManager scripts
@@ -45,8 +53,8 @@ echo "Removing ModemManager scripts..."
 sudo rm -rf /etc/ModemManager/fcc-unlock.d
 
 ### Remove all installed files
-echo "Removing files from /opt/fcc_lenovo..."
-sudo rm -rf /opt/fcc_lenovo
+echo "Removing files from ${INSTALL_DIR}..."
+sudo rm -rf "${INSTALL_DIR}"
 
 echo "Uninstallation complete."
 echo "If you need to verify state, run: ./verify_install.sh"

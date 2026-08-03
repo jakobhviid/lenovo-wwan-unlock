@@ -6,7 +6,7 @@ Wants=ModemManager.service
 [Service]
 Type=oneshot
 ExecStartPre=/bin/bash -c 'for i in $(seq 1 60); do [ -c /dev/wwan0mbim0 ] || { sleep 1; continue; }; mmcli -m 0 -K &>/dev/null && exit 0; sleep 1; done; echo "Timeout waiting for modem to be detected" >&2; exit 1'
-ExecStart=/opt/fcc_lenovo/DPR_Fcc_unlock_service
+ExecStart=/var/fcc_lenovo/DPR_Fcc_unlock_service
 RemainAfterExit=yes
 
 [Install]

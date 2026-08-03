@@ -6,6 +6,10 @@ The original scripts in this repository were designed for traditional Linux dist
 
 These Silverblue-compatible scripts were developed by Gemini AI. Additional adaptations and hardening were made by Codex (OpenAI).
 
+> **Modem stopped unlocking after a base-image update?** This is almost always the
+> atomic `/opt` model change. See [`SILVERBLUE_NOTES.md`](SILVERBLUE_NOTES.md) for the
+> full root-cause analysis, the three-part failure chain, diagnostics, and the fix.
+
 Quick Start (Silverblue / Kinoite / Bazzite):
 1) Run the Silverblue setup script:
    ```
@@ -39,16 +43,19 @@ Uninstall (Silverblue / Kinoite / Bazzite):
    ```
 
 Notes / Deviations From Upstream:
-- The upstream Lenovo repo does not include the Silverblue scripts. This fork adds them and uses writable `/etc` and `/opt` paths instead of immutable `/usr` and `/lib`.
+- The upstream Lenovo repo does not include the Silverblue scripts. This fork adds them and installs to the writable path **`/var/fcc_lenovo`** (plus `/etc`) instead of immutable `/usr` and `/lib`.
+- Everything is installed under `/var/fcc_lenovo` — **not** `/opt/fcc_lenovo`. On newer atomic images (e.g. Bazzite) `/opt` is a real, read-only composefs directory, so the historical `/opt` path no longer works. See [`SILVERBLUE_NOTES.md`](SILVERBLUE_NOTES.md).
+- Lenovo's `DPR_Fcc_unlock_service` / `configservice_lenovo` `dlopen()` their libraries from a path **hardcoded in the binary** (`/opt/fcc_lenovo/lib/…`). The setup script rewrites that prefix to `/var/fcc_lenovo` with an in-place, equal-length ELF patch.
+- The setup script `chown root:root`s the `fcc-unlock.d` hooks — ModemManager refuses to run any FCC-unlock hook that is not owned by root.
 - The legacy Lenovo scripts (`fcc_unlock_setup.sh`, `fcc_unlock_uninstall.sh`) are retained for reference, but they now detect Fedora Silverblue/Kinoite (case-insensitive) and defer to the Silverblue scripts.
-- The FCC unlock scripts inside `fcc-unlock.d.tar.gz` now call `/opt/fcc_lenovo/DPR_Fcc_unlock_service` using an absolute path to avoid reliance on ModemManager’s working directory.
 - `fcc_unlock_setup_silverblue.sh` includes a best-effort check that warns if ModemManager’s FCC unlock search path does not appear to include `/etc/ModemManager/fcc-unlock.d`.
 
 Rationale / Known Issues (for maintainers):
-- Silverblue/Kinoite have immutable `/usr` and `/lib`, so upstream install logic that writes into those locations will fail. All integration must be done via writable `/etc` and `/opt`.
-- The original `fcc-unlock.d` scripts used `./opt/fcc_lenovo/...` (relative path). This can break if ModemManager’s working directory is not `/`. Absolute `/opt/...` avoids this fragility.
+- Silverblue/Kinoite/Bazzite have immutable `/usr`, `/lib`, and (new-model) `/opt`, so any install logic that writes into those will fail. All integration must be done via writable `/etc` and `/var`.
+- SELinux (enforcing) blocks `modemmanager_t` from executing files labeled `var_t`. The setup script registers durable `semanage fcontext` rules (`bin_t` for the binaries, `lib_t` for the libs) and runs `restorecon`.
 - ModemManager’s FCC unlock search paths may vary by build. The Silverblue setup script does a best-effort binary check for `/etc/ModemManager/fcc-unlock.d` and warns if it cannot find it.
-- The scripts assume `mmcli`, `lspci`, `semodule`, `ldconfig`, and `systemctl` are present. On a minimal Silverblue image, you may need to install missing packages via `rpm-ostree`.
+- The scripts assume `mmcli`, `lspci`, `semodule`, `semanage`, `ldconfig`, `perl`, and `systemctl` are present. On a minimal image you may need to install missing packages (e.g. `policycoreutils-python-utils` for `semanage`) via `rpm-ostree`.
+- For a full breakdown of the failure chain and an image-based (bootc/ublue) alternative, see [`SILVERBLUE_NOTES.md`](SILVERBLUE_NOTES.md).
 
 ----
 Everything below this line is from the original upstream repository.

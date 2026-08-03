@@ -4,29 +4,61 @@
 pushd "$(dirname "$0")" &> /dev/null || exit 1
 trap "popd &> /dev/null" EXIT
 
-echo "Setting up WWAN unlock for Fedora Silverblue..."
+echo "Setting up WWAN unlock for Fedora Silverblue / Kinoite / Bazzite..."
 
-### Part 1: Copy files to writable locations
+### Why this install dir?
+#
+# Lenovo's DPR_Fcc_unlock_service and configservice_lenovo dlopen() their
+# plugin libraries and read their SAR configs from a HARDCODED absolute path
+# baked into the ELF: "/opt/fcc_lenovo/...". On older Fedora atomic, /opt was a
+# symlink to /var/opt, so that path resolved to a writable location and things
+# worked. Newer atomic images (e.g. Bazzite) ship /opt as a REAL, read-only
+# composefs directory (it now holds image-baked content such as browsers), so
+# "/opt/fcc_lenovo" can neither be created nor resolved -> the unlock aborts
+# with "Open libmbimtools.so failed" / "FCC unlock failed".
+#
+# Fix: install everything under a writable path and rewrite the hardcoded path
+# inside the two binaries. We use "/var/fcc_lenovo" precisely because it is the
+# SAME LENGTH as "/opt/fcc_lenovo" (15 bytes), which lets us patch the ELF
+# strings in place without shifting any offsets.
+INSTALL_DIR="/var/fcc_lenovo"
+OLD_PREFIX="/opt/fcc_lenovo"
 
-echo "Copying files and libraries to /opt/fcc_lenovo..."
+echo "Copying files and libraries to ${INSTALL_DIR}..."
 
-sudo mkdir -p /opt/fcc_lenovo/lib
+sudo mkdir -p "${INSTALL_DIR}/lib"
 
 ### Copy main binaries and libraries
-sudo cp -rvf DPR_Fcc_unlock_service /opt/fcc_lenovo/
-sudo cp -rvf configservice_lenovo /opt/fcc_lenovo/
-sudo cp -rvf libmodemauth.so /opt/fcc_lenovo/lib/
-sudo cp -rvf libmodemauth.so.1.1 /opt/fcc_lenovo/lib/
-sudo cp -rvf libconfigserviceR+.so /opt/fcc_lenovo/lib/
-sudo cp -rvf libconfigservice350.so /opt/fcc_lenovo/lib/
-sudo cp -rvf libconfigservice350.so.1.1 /opt/fcc_lenovo/lib/
-sudo cp -rvf libmbimtools.so /opt/fcc_lenovo/lib/
+sudo cp -rvf DPR_Fcc_unlock_service "${INSTALL_DIR}/"
+sudo cp -rvf configservice_lenovo "${INSTALL_DIR}/"
+sudo cp -rvf libmodemauth.so "${INSTALL_DIR}/lib/"
+sudo cp -rvf libmodemauth.so.1.1 "${INSTALL_DIR}/lib/"
+sudo cp -rvf libconfigserviceR+.so "${INSTALL_DIR}/lib/"
+sudo cp -rvf libconfigservice350.so "${INSTALL_DIR}/lib/"
+sudo cp -rvf libconfigservice350.so.1.1 "${INSTALL_DIR}/lib/"
+sudo cp -rvf libmbimtools.so "${INSTALL_DIR}/lib/"
 
 ### Copy SAR config files
-sudo tar -zxf sar_config_files.tar.gz -C /opt/fcc_lenovo/
+sudo tar -zxf sar_config_files.tar.gz -C "${INSTALL_DIR}/"
 
 ### Grant permissions to all binaries and scripts
-sudo chmod ugo+x /opt/fcc_lenovo/*
+sudo chmod ugo+x "${INSTALL_DIR}"/*
+
+### Rewrite the hardcoded "/opt/fcc_lenovo" prefix inside the binaries so they
+### look for their libs/configs under ${INSTALL_DIR}. Equal-length replacement
+### keeps the ELF byte-for-byte the same size (offsets preserved).
+if [ "${INSTALL_DIR}" != "${OLD_PREFIX}" ]; then
+    echo "Patching hardcoded '${OLD_PREFIX}' -> '${INSTALL_DIR}' in binaries..."
+    if [ ${#INSTALL_DIR} -ne ${#OLD_PREFIX} ]; then
+        echo "ERROR: INSTALL_DIR must be the same length as ${OLD_PREFIX} for the in-place patch." >&2
+        exit 1
+    fi
+    for b in DPR_Fcc_unlock_service configservice_lenovo; do
+        sudo perl -0777 -pi -e "s{\Q${OLD_PREFIX}\E}{${INSTALL_DIR}}g" "${INSTALL_DIR}/${b}"
+        leftover=$(strings "${INSTALL_DIR}/${b}" 2>/dev/null | grep -c "${OLD_PREFIX}")
+        echo "  ${b}: ${leftover} leftover '${OLD_PREFIX}' reference(s)"
+    done
+fi
 
 ### Part 2: Configure system integrations
 
@@ -37,7 +69,19 @@ sudo mkdir -p /etc/ModemManager/fcc-unlock.d
 sudo tar -zxf fcc-unlock.d.tar.gz -C /etc/ModemManager/fcc-unlock.d/ --strip-components=1
 # Remove macOS metadata files if present
 sudo find /etc/ModemManager/fcc-unlock.d -name '._*' -delete
-sudo chmod ugo+x /etc/ModemManager/fcc-unlock.d/*
+
+### The upstream hook scripts call the unlock binary via "/opt/fcc_lenovo/..."
+### (sometimes as "./opt/..."). Repoint them at our install dir.
+echo "Repointing FCC unlock hooks at ${INSTALL_DIR}..."
+sudo sed -i -E "s#\.?(/var/opt/fcc_lenovo|/opt/fcc_lenovo)/DPR_Fcc_unlock_service#${INSTALL_DIR}/DPR_Fcc_unlock_service#g" \
+    /etc/ModemManager/fcc-unlock.d/*
+
+### ModemManager REFUSES to run an FCC-unlock hook unless it is owned by root
+### (it logs: "File '...' not owned by root"). The shipped tarball preserves a
+### foreign UID, so we must fix ownership and mode explicitly.
+sudo chown root:root /etc/ModemManager/fcc-unlock.d/*
+sudo chmod 755 /etc/ModemManager/fcc-unlock.d/*
+
 echo "Validating FCC unlock hook installation..."
 if [ -d /etc/ModemManager/fcc-unlock.d/fcc-unlock.d ]; then
     echo "Warning: Nested /etc/ModemManager/fcc-unlock.d/fcc-unlock.d detected."
@@ -65,12 +109,14 @@ else
     echo "Warning: 'strings' not available. Unable to verify ModemManager FCC unlock search path."
 fi
 
-### Configure dynamic linker to find our libraries
+### Configure dynamic linker to find our libraries.
+### NOTE: the binaries dlopen() their libs by absolute path (patched above), so
+### this is belt-and-suspenders, but we keep it consistent.
 echo "Configuring dynamic linker..."
-sudo bash -c 'echo "/opt/fcc_lenovo/lib" > /etc/ld.so.conf.d/fcc-lenovo.conf'
+sudo bash -c "echo '${INSTALL_DIR}/lib' > /etc/ld.so.conf.d/fcc-lenovo.conf"
 sudo ldconfig
 
-### Install and enable the SAR config service
+### Install and enable the SAR config service and FCC unlock service
 echo "Configuring systemd services..."
 sudo cp -rvf lenovo-cfgservice.service /etc/systemd/system/
 sudo cp -rvf lenovo-fcc-unlock.service /etc/systemd/system/
@@ -143,11 +189,36 @@ else
 fi
 
 ### Part 4: Apply SELinux policies
-echo "Applying SELinux policies..."
-sudo cp -rvf mm_FccUnlock.cil /opt/fcc_lenovo
-sudo cp -rvf mm_dmidecode.cil /opt/fcc_lenovo
-sudo cp -rvf mm_sh.cil /opt/fcc_lenovo
-sudo semodule -i /opt/fcc_lenovo/*.cil
+if command -v getenforce >/dev/null 2>&1 && [ "$(getenforce)" != "Disabled" ]; then
+    echo "Applying SELinux policies..."
+    sudo cp -rvf mm_FccUnlock.cil "${INSTALL_DIR}"
+    sudo cp -rvf mm_dmidecode.cil "${INSTALL_DIR}"
+    sudo cp -rvf mm_sh.cil "${INSTALL_DIR}"
+    sudo semodule -i "${INSTALL_DIR}"/*.cil
+
+    ### ModemManager runs as modemmanager_t. It may only execute helpers labeled
+    ### bin_t and map libraries labeled lib_t. Files freshly created under /var
+    ### default to var_t, which modemmanager_t is NOT allowed to execute:
+    ###   avc: denied { execute } ... comm="<vid:pid>" ... tcontext=...:var_t
+    ### Register durable file-context rules and relabel so the labels survive a
+    ### policy relabel / reboot.
+    if command -v semanage >/dev/null 2>&1; then
+        echo "Registering SELinux file contexts for ${INSTALL_DIR}..."
+        sudo semanage fcontext -a -t bin_t "${INSTALL_DIR}/DPR_Fcc_unlock_service" 2>/dev/null \
+            || sudo semanage fcontext -m -t bin_t "${INSTALL_DIR}/DPR_Fcc_unlock_service"
+        sudo semanage fcontext -a -t bin_t "${INSTALL_DIR}/configservice_lenovo" 2>/dev/null \
+            || sudo semanage fcontext -m -t bin_t "${INSTALL_DIR}/configservice_lenovo"
+        sudo semanage fcontext -a -t lib_t "${INSTALL_DIR}/lib(/.*)?" 2>/dev/null \
+            || sudo semanage fcontext -m -t lib_t "${INSTALL_DIR}/lib(/.*)?"
+        sudo restorecon -R "${INSTALL_DIR}"
+    else
+        echo "Warning: semanage not found. Applying labels with chcon (not relabel-durable)."
+        sudo chcon -t bin_t "${INSTALL_DIR}/DPR_Fcc_unlock_service" "${INSTALL_DIR}/configservice_lenovo"
+        sudo chcon -t lib_t "${INSTALL_DIR}"/lib/*.so* 2>/dev/null || true
+    fi
+else
+    echo "SELinux disabled; skipping SELinux policy + labeling."
+fi
 
 ### Part 5: Finalizing
 if [ "$restart_mm_service" == "true" ]
@@ -158,6 +229,8 @@ then
 fi
 
 ### Part 6: Check persisted WWAN rfkill state (ThinkPad)
+### A persisted value of 0 makes systemd-rfkill re-block WWAN at every boot,
+### which ModemManager reports as "software radio switch is OFF".
 RFKILL_STORE="/var/lib/systemd/rfkill/platform-thinkpad_acpi:wwan"
 if [ -f "$RFKILL_STORE" ]; then
     RFKILL_VAL=$(cat "$RFKILL_STORE" 2>/dev/null || echo "")

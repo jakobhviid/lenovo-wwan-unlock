@@ -5,5 +5,5 @@ if [ "$1" = "post" ]; then
         [ -c /dev/wwan0mbim0 ] && break
         sleep 1
     done
-    /opt/fcc_lenovo/DPR_Fcc_unlock_service
+    /var/fcc_lenovo/DPR_Fcc_unlock_service
 fi
