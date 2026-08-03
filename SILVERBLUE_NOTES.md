@@ -150,6 +150,11 @@ mmcli -m 0 | grep -E 'state:|power state|signal|packet'
 
 ## Alternative: bake it into a custom image (bootc / ublue)
 
+> **Full step-by-step guide: [`IMAGE_BAKING.md`](IMAGE_BAKING.md)** — Containerfile
+> and `build.sh` snippets, exact file layout, SELinux labeling, self-gating
+> systemd units, verification, and a troubleshooting matrix. The summary below is
+> the rationale; that doc is the implementation.
+
 On a system you build yourself, this is cleaner than the runtime scripts:
 
 - **`COPY` the files to the real `/opt/fcc_lenovo`** in your Containerfile. Read-only

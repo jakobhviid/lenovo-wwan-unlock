@@ -9,6 +9,10 @@ These Silverblue-compatible scripts were developed by Gemini AI. Additional adap
 > **Modem stopped unlocking after a base-image update?** This is almost always the
 > atomic `/opt` model change. See [`SILVERBLUE_NOTES.md`](SILVERBLUE_NOTES.md) for the
 > full root-cause analysis, the three-part failure chain, diagnostics, and the fix.
+>
+> **Building a custom OS image (bootc / `ublue`)?** Prefer baking the unlock into the
+> image over the runtime scripts — it uses Lenovo's upstream files unmodified and is
+> reproducible and fleet-safe. Full guide: [`IMAGE_BAKING.md`](IMAGE_BAKING.md).
 
 Quick Start (Silverblue / Kinoite / Bazzite):
 1) Run the Silverblue setup script:
